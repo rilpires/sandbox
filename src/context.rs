@@ -17,8 +17,8 @@ pub struct Context<'a> {
     pub world: WorldGrid,
     pub toolbox: ToolBox,
     pub rng: ThreadRng,
-    pub point_size: u32,
-    pub tick_counter: u32,
+    pub point_size: usize,
+    pub tick_counter: usize,
     pub texture_creator: TextureCreator<WindowContext>,
     pub font: Font<'a, 'a>,
 }
@@ -33,7 +33,7 @@ impl<'a> Context<'a> {
         self.draw_text("Fdp!", Vector2{x:0, y:0})
     }
 
-    pub fn draw_text(&mut self, str:&str, pos:Vector2<u32>) {
+    pub fn draw_text(&mut self, str:&str, pos:Vector2<usize>) {
         let surface = self.font
             .render(&str)
             .blended(Color::RGB(0, 0, 0))
@@ -65,11 +65,24 @@ impl<'a> Context<'a> {
                     CellType::Sand(data) => {
                         self.canvas.set_draw_color(data.color);
                         self.canvas.draw_point(Point::new(x as i32, y as i32).scale(point_size as i32)).unwrap();
-                        self.canvas.fill_rect(Rect::new((x*point_size) as i32, (y*point_size) as i32, point_size, point_size)).unwrap();
+                        self.canvas.fill_rect(
+                            Rect::new(
+                                (x*point_size) as i32,
+                                (y*point_size) as i32,
+                                point_size as u32,
+                                point_size as u32
+                            )
+                        ).unwrap();
                     },
                     CellType::Block(data) => {
                         self.canvas.set_draw_color(data.color);
-                        self.canvas.fill_rect(Rect::new((x*point_size) as i32, (y*point_size) as i32, point_size, point_size)).unwrap();
+                        self.canvas.fill_rect(
+                            Rect::new(
+                                (x*point_size) as i32,
+                                (y*point_size) as i32,
+                                point_size as u32,
+                                point_size as u32)
+                            ).unwrap();
                     },
                 }
             }

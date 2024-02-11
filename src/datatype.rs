@@ -7,6 +7,7 @@ pub struct Vector2<T> where T: Mul + MulAssign + Copy + Display {
     pub y: T,
 }
 
+
 impl<T> Vector2<T> where T: Mul + MulAssign + Copy + Display {
 
     // Returns self
@@ -34,4 +35,40 @@ impl<T> Display for Vector2<T> where T : Mul + MulAssign + Copy + Display {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
     }
+}
+
+
+#[derive(Clone)]
+pub struct GridMap<T> {
+    width: usize,
+    height: usize,
+    grid: Vec<T>,
+}
+
+impl<T> GridMap<T> 
+where T: Clone
+{
+    pub fn new(w:usize, h:usize, default:T) -> Self {
+        GridMap {
+            width: w as usize,
+            height: h as usize,
+            grid: vec![default; w*h]
+        }
+    }
+
+    pub fn get(&self, x:usize, y:usize) -> &T {
+        return &(self.grid[x + y*self.width]);
+    }
+
+    pub fn set(&mut self, x:usize, y:usize, new_val:T) {
+        self.grid[x + y*self.width] = new_val;
+    }
+
+    pub fn width(&self) -> usize {
+        self.width
+    }
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
 }

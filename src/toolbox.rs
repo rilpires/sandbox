@@ -4,10 +4,10 @@ use crate::datatype::*;
 
 
 pub struct ToolBox {
-    current_color_index: u32,
+    current_color_index: usize,
     available_colors: Vec<Color>,
-    mouse_box: Vector2<u32>,
-    points_per_paint : u32,
+    mouse_box: Vector2<usize>,
+    points_per_paint : usize,
 }
 
 impl ToolBox {
@@ -21,20 +21,20 @@ impl ToolBox {
                 Color::RGB(0, 255, 0),
                 Color::RGB(0, 0, 255),
             ],
-            mouse_box: Vector2{x:15u32, y:15u32},
+            mouse_box: Vector2{x:15, y:15},
             points_per_paint: 25,
         }
     }
 
-    pub fn mouse_box(&self) -> Vector2<u32> {
+    pub fn mouse_box(&self) -> Vector2<usize> {
         self.mouse_box
     }
 
-    pub fn points_per_paint(&self) -> u32 {
+    pub fn points_per_paint(&self) -> usize {
         self.points_per_paint
     }
 
-    pub fn current_color_index(&self) -> u32 {
+    pub fn current_color_index(&self) -> usize {
         self.current_color_index
     }
 

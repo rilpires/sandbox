@@ -32,7 +32,7 @@ mod context;
 pub fn main() {
     let font_bytes = include_bytes!("../assets/Courier Prime Code.ttf");
     let bg_color = Color::RGB(255, 255, 255);
-    let point_size : u32 = 1;
+    let point_size : usize = 4;
     
     let mut toolbox = ToolBox::new();
     let mut world = WorldGrid::new(800/point_size, 600/point_size);
@@ -50,9 +50,9 @@ pub fn main() {
     let mut canvas = window.into_canvas().build().unwrap();
     let mut texture_creator = canvas.texture_creator();
     let mut event_pump = sdl_context.event_pump().unwrap();
-    let mut last_mouse_pos = Vector2::<u32>{x:0, y:0};
+    let mut last_mouse_pos = Vector2::<usize>{x:0, y:0};
     let rwops = RWops::from_bytes(font_bytes).unwrap();
-    let mut last_frame_times = VecDeque::<u32>::new();
+    let mut last_frame_times = VecDeque::<usize>::new();
 
     let mut context = Context {
         canvas: canvas,
@@ -84,7 +84,7 @@ pub fn main() {
                     timestamp, window_id, which,
                     mousestate, x, y, xrel, yrel,
                 } => {
-                    last_mouse_pos = Vector2{x: x as u32, y: y as u32};
+                    last_mouse_pos = Vector2{x: x as usize, y: y as usize};
                 },
                 Event::MouseButtonDown { timestamp, window_id, which, mouse_btn, clicks, x, y } => {
                     painting = true
@@ -102,8 +102,8 @@ pub fn main() {
             Rect::new(
                 last_mouse_pos.clone().x as i32 - (point_size * context.toolbox.mouse_box().x) as i32 / 2 ,
                 last_mouse_pos.clone().y as i32 - (point_size * context.toolbox.mouse_box().y) as i32 / 2 ,
-                context.toolbox.mouse_box().x * point_size,
-                context.toolbox.mouse_box().y * point_size,
+                (context.toolbox.mouse_box().x * point_size) as u32,
+                (context.toolbox.mouse_box().y * point_size) as u32,
             )
         ).unwrap();
 
@@ -122,14 +122,14 @@ pub fn main() {
         let delta_t = Duration::from_micros(16666);
         let after = std::time::Instant::now();
         let elapsed = after.duration_since(loop_start);
-        last_frame_times.push_back( max(elapsed, delta_t).as_micros() as u32 );
+        last_frame_times.push_back( max(elapsed, delta_t).as_micros() as usize );
         if (last_frame_times.len() > 60) {
             last_frame_times.pop_front();
         }
-        let time_sum : u32 = last_frame_times.iter().sum();
+        let time_sum : usize = last_frame_times.iter().sum();
         context.draw_text(
             format!("FPS: {}", (1000000.0 * last_frame_times.len() as f32 / (time_sum as f32)) as i32 ).as_str(),
-            Vector2{x:550u32, y:0u32},
+            Vector2{x:550, y:0},
         );
 
 
@@ -140,27 +140,37 @@ pub fn main() {
     }
 }
 
-fn mouse_tick(context: &mut Context, mouse_pos:Vector2<u32>) {
+fn mouse_tick(context: &mut Context, mouse_pos:Vector2<usize>) {
     let world = &context.world;
     let toolbox = &context.toolbox;
     let canvas = &context.canvas;
 
-    let center_grid = Vector2::<u32> {
+    let center_grid = Vector2::<usize> {
         x: mouse_pos.x / context.point_size,
         y: mouse_pos.y / context.point_size,
     };
-    let mut center_x : u32 = max(toolbox.mouse_box().x/2, center_grid.x as u32);
-    let mut center_y : u32 = max(toolbox.mouse_box().y/2, center_grid.y as u32);
+    let mut center_x = max(toolbox.mouse_box().x/2, center_grid.x);
+    let mut center_y = max(toolbox.mouse_box().y/2, center_grid.y);
     center_x = min(center_x, world.width() - toolbox.mouse_box().x/2);
     center_y = min(center_y, world.height() - toolbox.mouse_box().y/2);
+    context.tick_counter += 2;
     for i in (0..toolbox.points_per_paint()) {
-        if (i%10==0) {context.tick_counter = (context.tick_counter + 1)%254};
         let x = center_x - toolbox.mouse_box().x/2 + context.rng.gen_range( 0..toolbox.mouse_box().x );
         let y = center_y - toolbox.mouse_box().y/2 + context.rng.gen_range( 0..toolbox.mouse_box().y );
-        context.world.set(x, y, CellType::Sand(ParticleData{
-            speed: (0.0, 1.0),
-            color: Color::RGB(context.tick_counter as u8, 0, 0)
-        }));
+        if *context.world.get(x, y) == CellType::Empty {
+            context.world.set(x, y, CellType::Sand(ParticleData{
+                speed: (0.0, 1.0),
+                color: Color::RGB(
+                    if (context.tick_counter % 512 >= 256) { 
+                        (context.tick_counter % 256) as u8
+                    } else {
+                        255u8 - (context.tick_counter % 256) as u8
+                    },
+                    0,
+                    0
+                )
+            }));
+        }
     }
 }
 
