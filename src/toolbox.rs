@@ -22,7 +22,7 @@ impl ToolBox {
                 Color::RGB(0, 0, 255),
             ],
             mouse_box: Vector2{x:15, y:15},
-            points_per_paint: 25,
+            points_per_paint: 55,
         }
     }
 

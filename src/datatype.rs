@@ -1,7 +1,7 @@
-use std::{fmt::Display, ops::{Mul, MulAssign}, process::Output};
+use std::{cmp::{max, min}, fmt::Display, ops::{Mul, MulAssign}, process::Output};
 
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Vector2<T> where T: Mul + MulAssign + Copy + Display {
     pub x: T,
     pub y: T,
@@ -60,8 +60,25 @@ where T: Clone
         return &(self.grid[x + y*self.width]);
     }
 
+    pub fn get_mut(&mut self, x:usize, y:usize) -> &mut T {
+        unsafe {
+            return self.grid.get_unchecked_mut(x + y*self.width);
+        }
+    }
+
     pub fn set(&mut self, x:usize, y:usize, new_val:T) {
         self.grid[x + y*self.width] = new_val;
+    }
+    pub fn swap(&mut self, x1:usize, y1:usize, x2:usize, y2:usize) {
+        self.grid.swap(x1 + y1*self.width, x2 + y2*self.width);
+    }
+
+    pub fn set_neighbor(&mut self, x:i32, y:i32, new_val:T) {
+        for sanitized_x in (max(0,x-1)..=min(x+1,self.width as i32-1)) {
+            for sanitized_y in (max(0,y-1)..=min(y+1,self.height as i32-1)) {
+                self.set(sanitized_x as usize, sanitized_y as usize, new_val.clone());
+            }        
+        }
     }
 
     pub fn width(&self) -> usize {
@@ -69,6 +86,10 @@ where T: Clone
     }
     pub fn height(&self) -> usize {
         self.height
+    }
+
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+        self.grid.iter_mut()
     }
 
 }

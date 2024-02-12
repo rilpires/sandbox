@@ -4,7 +4,7 @@ use datatype::Vector2;
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use sdl2::libc::{abs, rand};
-use sdl2::pixels::Color;
+use sdl2::pixels::{Color, PixelFormat, PixelFormatEnum};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::rect::{Point, Rect};
@@ -17,7 +17,7 @@ use std::time::Duration;
 use std::u32;
 use std::cmp::*;
 use rand::Rng;
-use sdl2::render::{Canvas, TextureCreator};
+use sdl2::render::{Canvas, TextureAccess, TextureCreator};
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
 use crate::world_grid::*;
@@ -30,44 +30,29 @@ mod datatype;
 mod context;
 
 pub fn main() {
-    let font_bytes = include_bytes!("../assets/Courier Prime Code.ttf");
-    let bg_color = Color::RGB(255, 255, 255);
-    let point_size : usize = 4;
+    let bg_color = Color::RGBA(255, 255, 255, 255);
+    let point_size : usize = 2;
     
-    let mut toolbox = ToolBox::new();
-    let mut world = WorldGrid::new(800/point_size, 600/point_size);
+
+    let mut world = World::new(800/point_size, 600/point_size);
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let mut painting = false;
     let mut counter = 0;
-    let mut ttf = sdl2::ttf::init().unwrap();
     let window = video_subsystem
         .window("sandbox", 800, 600)
         .position_centered()
         .build()
         .unwrap();
-    let mut rng = rand::thread_rng();
     let mut canvas = window.into_canvas().build().unwrap();
-    let mut texture_creator = canvas.texture_creator();
     let mut event_pump = sdl_context.event_pump().unwrap();
     let mut last_mouse_pos = Vector2::<usize>{x:0, y:0};
-    let rwops = RWops::from_bytes(font_bytes).unwrap();
     let mut last_frame_times = VecDeque::<usize>::new();
+    let mut ttf = sdl2::ttf::init().unwrap();
+    let mut texture_creator = canvas.texture_creator();
 
-    let mut context = Context {
-        canvas: canvas,
-        world,
-        toolbox,
-        rng,
-        point_size,
-        tick_counter: 0,
-        texture_creator,
-        font: ttf.load_font_at_index_from_rwops(
-            rwops, 0, 24,
-        ).unwrap(),
-    };
-
-
+    canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
+    let mut context = Context::new(&mut canvas, world, point_size, &ttf, &texture_creator);
 
     'running: loop {
         let loop_start = std::time::Instant::now();
@@ -107,19 +92,21 @@ pub fn main() {
             )
         ).unwrap();
 
-        // Processing the world
-        context.world.process_frame();
-
         // Painting
         if (painting) {
             mouse_tick(&mut context, last_mouse_pos);
         }
 
-        context.draw_cells();
+        // Processing the world
+        let updated_cells = context.world.process_frame();
+        context.draw_cells(&updated_cells);
+        
         context.draw_toolbox();
-
+        
         // FPS calculation
         let delta_t = Duration::from_micros(16666);
+        // let delta_t = Duration::from_micros(500000);
+        // let delta_t = Duration::from_micros(1);
         let after = std::time::Instant::now();
         let elapsed = after.duration_since(loop_start);
         last_frame_times.push_back( max(elapsed, delta_t).as_micros() as usize );
@@ -131,8 +118,6 @@ pub fn main() {
             format!("FPS: {}", (1000000.0 * last_frame_times.len() as f32 / (time_sum as f32)) as i32 ).as_str(),
             Vector2{x:550, y:0},
         );
-
-
         context.canvas.present();
         if (delta_t > elapsed) {
             std::thread::sleep( delta_t - elapsed );
@@ -141,7 +126,9 @@ pub fn main() {
 }
 
 fn mouse_tick(context: &mut Context, mouse_pos:Vector2<usize>) {
-    let world = &context.world;
+    let width = context.world.width().clone();
+    let height = context.world.height().clone();
+    let mut world = &mut context.world;
     let toolbox = &context.toolbox;
     let canvas = &context.canvas;
 
@@ -151,26 +138,25 @@ fn mouse_tick(context: &mut Context, mouse_pos:Vector2<usize>) {
     };
     let mut center_x = max(toolbox.mouse_box().x/2, center_grid.x);
     let mut center_y = max(toolbox.mouse_box().y/2, center_grid.y);
-    center_x = min(center_x, world.width() - toolbox.mouse_box().x/2);
-    center_y = min(center_y, world.height() - toolbox.mouse_box().y/2);
-    context.tick_counter += 2;
+    center_x = min(center_x, width - toolbox.mouse_box().x/2);
+    center_y = min(center_y, height - toolbox.mouse_box().y/2);
+    context.tick_counter += 1;
     for i in (0..toolbox.points_per_paint()) {
         let x = center_x - toolbox.mouse_box().x/2 + context.rng.gen_range( 0..toolbox.mouse_box().x );
         let y = center_y - toolbox.mouse_box().y/2 + context.rng.gen_range( 0..toolbox.mouse_box().y );
-        if *context.world.get(x, y) == CellType::Empty {
-            context.world.set(x, y, CellType::Sand(ParticleData{
-                speed: (0.0, 1.0),
-                color: Color::RGB(
-                    if (context.tick_counter % 512 >= 256) { 
-                        (context.tick_counter % 256) as u8
-                    } else {
-                        255u8 - (context.tick_counter % 256) as u8
-                    },
-                    0,
-                    0
-                )
-            }));
-        }
+        world.set(x, y, CellType::Sand(ParticleData{
+            speed: Vector2{x:0.0, y:2.0},
+            color: Color::RGBA(
+                if (context.tick_counter % 512 >= 256) { 
+                    (context.tick_counter % 256) as u8
+                } else {
+                    255u8 - (context.tick_counter % 256) as u8
+                },
+                0,
+                0,
+                255
+            )
+        }));
     }
 }
 
